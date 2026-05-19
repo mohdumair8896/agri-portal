@@ -191,11 +191,11 @@ pipeline {
                         return 1
                     }
 
-                    check_service "farmer-service"  "http://localhost:8081/health"
-                    check_service "crop-service"    "http://localhost:8082/health"
-                    check_service "scheme-service"  "http://localhost:8083/health"
-                    check_service "api-gateway"     "http://localhost:8080/health"
-                    check_service "angular-ui"      "http://localhost:4200"
+                    check_service "farmer-service"  "http://localhost:18081/health"
+                    check_service "crop-service"    "http://localhost:18082/health"
+                    check_service "scheme-service"  "http://localhost:18083/health"
+                    check_service "api-gateway"     "http://localhost:18080/api/farmers"
+                    check_service "angular-ui"      "http://localhost:14200"
 
                     echo ""
                     echo "=== All services healthy! ==="
@@ -211,15 +211,15 @@ pipeline {
                 echo '=================================='
                 sh '''
                     echo "Testing /api/farmers endpoint..."
-                    RESULT=$(curl -sf http://localhost:8080/api/farmers)
+                    RESULT=$(curl -sf http://localhost:18080/api/farmers)
                     echo "farmers response: $RESULT"
 
                     echo "Testing /api/crops endpoint..."
-                    RESULT=$(curl -sf http://localhost:8080/api/crops)
+                    RESULT=$(curl -sf http://localhost:18080/api/crops)
                     echo "crops response: $RESULT"
 
                     echo "Testing /api/schemes endpoint..."
-                    RESULT=$(curl -sf http://localhost:8080/api/schemes)
+                    RESULT=$(curl -sf http://localhost:18080/api/schemes)
                     echo "schemes response: $RESULT"
 
                     echo "✅ All API smoke tests passed"
