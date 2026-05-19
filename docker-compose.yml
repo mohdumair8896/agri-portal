@@ -1,0 +1,180 @@
+# ============================================================
+# AgriPortal — Docker Compose Configuration
+# Task 2: Orchestrates all microservices + DB + Gateway + UI
+# ============================================================
+# Services:
+#   postgres       → 5432 (internal)
+#   farmer-service → 8081
+#   crop-service   → 8082
+#   scheme-service → 8083
+#   api-gateway    → 8080
+#   angular-ui     → 4200 (mapped from container:80)
+# ============================================================
+
+# ── Networks ──────────────────────────────────────────────────
+networks:
+  agri-network:
+    driver: bridge
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+
+# ── Services ──────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: agri-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       agridb
+      POSTGRES_USER:     agriuser
+      POSTGRES_PASSWORD: agripassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data      # persistent data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5433:5432"   # host:5433 → container:5432 (avoids conflict with local postgres)
+    networks:
+      - agri-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agriuser -d agridb"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 20s
+
+  # ── Farmer Service (port 8081) ──────────────────────────────
+  farmer-service:
+    build:
+      context:    ./farmer-service
+      dockerfile: Dockerfile
+    container_name: agri-farmer-service
+    restart: unless-stopped
+    environment:
+      PORT:        8081
+      NODE_ENV:    production
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_NAME:     agridb
+      DB_USER:     agriuser
+      DB_PASSWORD: agripassword
+    ports:
+      - "18081:8081"   # host:18081 → container:8081
+    networks:
+      - agri-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 20s
+      timeout:  10s
+      retries:  3
+      start_period: 15s
+
+  # ── Crop Service (port 8082) ────────────────────────────────
+  crop-service:
+    build:
+      context:    ./crop-service
+      dockerfile: Dockerfile
+    container_name: agri-crop-service
+    restart: unless-stopped
+    environment:
+      PORT:        8082
+      NODE_ENV:    production
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_NAME:     agridb
+      DB_USER:     agriuser
+      DB_PASSWORD: agripassword
+    ports:
+      - "18082:8082"   # host:18082 → container:8082
+    networks:
+      - agri-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 20s
+      timeout:  10s
+      retries:  3
+      start_period: 15s
+
+  # ── Scheme Service (port 8083) ──────────────────────────────
+  scheme-service:
+    build:
+      context:    ./scheme-service
+      dockerfile: Dockerfile
+    container_name: agri-scheme-service
+    restart: unless-stopped
+    environment:
+      PORT:        8083
+      NODE_ENV:    production
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_NAME:     agridb
+      DB_USER:     agriuser
+      DB_PASSWORD: agripassword
+    ports:
+      - "18083:8083"   # host:18083 → container:8083
+    networks:
+      - agri-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      interval: 20s
+      timeout:  10s
+      retries:  3
+      start_period: 15s
+
+  # ── API Gateway — NGINX (port 8080) ─────────────────────────
+  api-gateway:
+    build:
+      context:    ./api-gateway
+      dockerfile: Dockerfile
+    container_name: agri-api-gateway
+    restart: unless-stopped
+    ports:
+      - "18080:8080"   # host:18080 → container:8080 (API Gateway)
+    networks:
+      - agri-network
+    depends_on:
+      farmer-service:
+        condition: service_healthy
+      crop-service:
+        condition: service_healthy
+      scheme-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 20s
+      timeout:  5s
+      retries:  3
+      start_period: 10s
+
+  # ── Angular UI (port 4200) ───────────────────────────────────
+  angular-ui:
+    build:
+      context:    ./angular-ui
+      dockerfile: Dockerfile
+    container_name: agri-angular-ui
+    restart: unless-stopped
+    ports:
+      - "14200:80"        # host:14200 → container:80 (Angular UI)
+    networks:
+      - agri-network
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 20s

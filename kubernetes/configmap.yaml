@@ -1,0 +1,37 @@
+# ============================================================
+# Kubernetes ConfigMap — Shared Environment Configuration
+# Task 4 (Optional): configmap.yaml
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agri-config
+  namespace: agri-portal
+  labels:
+    app.kubernetes.io/part-of: agri-portal
+data:
+  # Database connection (non-secret values)
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "agridb"
+  NODE_ENV: "production"
+
+---
+# ============================================================
+# Kubernetes Secret — Database Credentials
+# ============================================================
+# NOTE: In production, use a proper secrets manager.
+#       Values below are base64-encoded (echo -n "value" | base64)
+#   agriuser     → YWdyaXVzZXI=
+#   agripassword → YWdyaXBhc3N3b3Jk
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agri-db-secret
+  namespace: agri-portal
+  labels:
+    app.kubernetes.io/part-of: agri-portal
+type: Opaque
+data:
+  DB_USER:     YWdyaXVzZXI=
+  DB_PASSWORD: YWdyaXBhc3N3b3Jk

@@ -1,0 +1,125 @@
+# ============================================================
+# Kubernetes Services — Task 4: service.yaml
+# Exposes: postgres, farmer-service, crop-service, scheme-service
+# ============================================================
+
+# ── PostgreSQL Service (ClusterIP — internal only) ────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: agri-portal
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - name:       postgres
+      port:       5432
+      targetPort: 5432
+      protocol:   TCP
+
+---
+# ── Farmer Service (ClusterIP) ────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmer-service
+  namespace: agri-portal
+  labels:
+    app: farmer-service
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: ClusterIP
+  selector:
+    app: farmer-service
+  ports:
+    - name:       http
+      port:       8081
+      targetPort: 8081
+      protocol:   TCP
+
+---
+# ── Crop Service (ClusterIP) ──────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: crop-service
+  namespace: agri-portal
+  labels:
+    app: crop-service
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: ClusterIP
+  selector:
+    app: crop-service
+  ports:
+    - name:       http
+      port:       8082
+      targetPort: 8082
+      protocol:   TCP
+
+---
+# ── Scheme Service (ClusterIP) ────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheme-service
+  namespace: agri-portal
+  labels:
+    app: scheme-service
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: ClusterIP
+  selector:
+    app: scheme-service
+  ports:
+    - name:       http
+      port:       8083
+      targetPort: 8083
+      protocol:   TCP
+
+---
+# ── API Gateway (NodePort — accessible from outside cluster) ──
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: agri-portal
+  labels:
+    app: api-gateway
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: NodePort
+  selector:
+    app: api-gateway
+  ports:
+    - name:       http
+      port:       8080
+      targetPort: 8080
+      nodePort:   30080      # Access at http://<node-ip>:30080
+      protocol:   TCP
+
+---
+# ── Angular UI (NodePort) ─────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: angular-ui-service
+  namespace: agri-portal
+  labels:
+    app: angular-ui
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  type: NodePort
+  selector:
+    app: angular-ui
+  ports:
+    - name:       http
+      port:       80
+      targetPort: 80
+      nodePort:   30200      # Access at http://<node-ip>:30200
+      protocol:   TCP

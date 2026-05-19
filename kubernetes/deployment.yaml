@@ -1,0 +1,288 @@
+# ============================================================
+# Kubernetes Deployments — Task 4: deployment.yaml
+# Includes:
+#   - farmer-service  (replicas: 2)
+#   - crop-service    (replicas: 2)
+#   - PostgreSQL       (replicas: 1 with PVC)
+# ============================================================
+
+# ── Namespace ─────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agri-portal
+  labels:
+    app.kubernetes.io/name: agri-portal
+
+---
+# ── PostgreSQL PersistentVolumeClaim ──────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: agri-portal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+
+---
+# ── PostgreSQL Deployment ─────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: agri-portal
+  labels:
+    app: postgres
+    component: database
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: database
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: agri-config
+                  key: DB_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: agri-db-secret
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agri-db-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "agriuser", "-d", "agridb"]
+            initialDelaySeconds: 15
+            periodSeconds:       10
+            timeoutSeconds:      5
+            failureThreshold:    5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "agriuser"]
+            initialDelaySeconds: 30
+            periodSeconds:       20
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu:    "250m"
+            limits:
+              memory: "512Mi"
+              cpu:    "500m"
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+
+---
+# ── Farmer Service Deployment ─────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmer-service
+  namespace: agri-portal
+  labels:
+    app: farmer-service
+    tier: backend
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: farmer-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge:       1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: farmer-service
+        tier: backend
+    spec:
+      containers:
+        - name: farmer-service
+          image: agri-portal/farmer-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          envFrom:
+            - configMapRef:
+                name: agri-config
+            - secretRef:
+                name: agri-db-secret
+          env:
+            - name: PORT
+              value: "8081"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds:       10
+            timeoutSeconds:      5
+            failureThreshold:    3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds:       30
+            timeoutSeconds:      5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu:    "100m"
+            limits:
+              memory: "256Mi"
+              cpu:    "300m"
+
+---
+# ── Crop Service Deployment ───────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crop-service
+  namespace: agri-portal
+  labels:
+    app: crop-service
+    tier: backend
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crop-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge:       1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: crop-service
+        tier: backend
+    spec:
+      containers:
+        - name: crop-service
+          image: agri-portal/crop-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+          envFrom:
+            - configMapRef:
+                name: agri-config
+            - secretRef:
+                name: agri-db-secret
+          env:
+            - name: PORT
+              value: "8082"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds:       10
+            timeoutSeconds:      5
+            failureThreshold:    3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 20
+            periodSeconds:       30
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu:    "100m"
+            limits:
+              memory: "256Mi"
+              cpu:    "300m"
+
+---
+# ── Scheme Service Deployment ─────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheme-service
+  namespace: agri-portal
+  labels:
+    app: scheme-service
+    tier: backend
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheme-service
+  template:
+    metadata:
+      labels:
+        app: scheme-service
+        tier: backend
+    spec:
+      containers:
+        - name: scheme-service
+          image: agri-portal/scheme-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: http
+          envFrom:
+            - configMapRef:
+                name: agri-config
+            - secretRef:
+                name: agri-db-secret
+          env:
+            - name: PORT
+              value: "8083"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds:       10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds:       30
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu:    "100m"
+            limits:
+              memory: "256Mi"
+              cpu:    "300m"
