@@ -286,3 +286,117 @@ spec:
             limits:
               memory: "256Mi"
               cpu:    "300m"
+
+---
+# ── API Gateway Deployment (NGINX reverse proxy) ──────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: agri-portal
+  labels:
+    app: api-gateway
+    tier: gateway
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge:       1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tier: gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: agri-portal/api-gateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /api/farmers
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds:       10
+            timeoutSeconds:      5
+            failureThreshold:    3
+          livenessProbe:
+            httpGet:
+              path: /api/farmers
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds:       30
+            timeoutSeconds:      5
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu:    "50m"
+            limits:
+              memory: "128Mi"
+              cpu:    "200m"
+
+---
+# ── Angular UI Deployment (NGINX static files) ────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular-ui
+  namespace: agri-portal
+  labels:
+    app: angular-ui
+    tier: frontend
+    app.kubernetes.io/part-of: agri-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: angular-ui
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge:       1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: angular-ui
+        tier: frontend
+    spec:
+      containers:
+        - name: angular-ui
+          image: agri-portal/angular-ui:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds:       10
+            timeoutSeconds:      5
+            failureThreshold:    3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds:       30
+            timeoutSeconds:      5
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu:    "50m"
+            limits:
+              memory: "128Mi"
+              cpu:    "200m"
